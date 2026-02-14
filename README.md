@@ -66,3 +66,13 @@ This uses DLL injection to add features to SSF, which antivirus software sometim
 ### Why It Works
 
 SSF expects a physical CD-ROM drive with SCSI commands. This patch creates a virtual drive that speaks SCSI but reads from CHD files.
+
+# License
+
+This project is licensed under the **BSD 3-Clause License** (same as libchdr).
+
+## Third-Party Components
+
+- **libchdr**: BSD 3-Clause License - CHD decompression library from MAME project
+- **Original chdssf**: No license specified - CHD hook concept by [batteryshark](https://github.com/batteryshark/chdssf)
+- **M3U multi-disc support**: Original addition by this fork
