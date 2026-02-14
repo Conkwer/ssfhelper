@@ -46,15 +46,6 @@ When game asks for next disc:
 
 This uses DLL injection to add features to SSF, which antivirus software sometimes flags as suspicious. **It's a false positive** - the same technique used by ReShade, ENB, and other game mods. Source code is fully available for inspection.
 
-## Building from Source
-
-```bash
-cd ssf_patch
-mkdir build && cd build
-cmake -G "MinGW Makefiles" ..
-mingw32-make
-```
-
 ## Files
 
 - `SSFHelper.exe` - Loader that patches SSF
