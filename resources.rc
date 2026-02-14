@@ -1,0 +1,4 @@
+#include <windows.h>
+
+1 ICON "icon.ico"
+1 RT_MANIFEST "dpiaware.manifest"

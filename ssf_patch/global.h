@@ -4,6 +4,7 @@
 
 #ifndef STORM_PATCH_GLOBALS_H
 #define STORM_PATCH_GLOBALS_H
+#define OutputDebugStr OutputDebugStringA
 
 #include <windows.h>
 #include <stdlib.h>

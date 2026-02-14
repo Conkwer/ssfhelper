@@ -1,10 +1,8 @@
-//
-// Created by batte on 6/8/2017.
-//
-
 #include "sptd.h"
 #include "global.h"
 #include "chd_helper.h"
+#include "m3u.h"
+#include <string.h>
 
 static HANDLE ldll;
 static int(*libchd_cdrom_open)(int);
@@ -12,6 +10,10 @@ static int(*libchd_cdrom_get_toc)(int,unsigned int*);
 static int(*libchd_cdrom_read_data)(struct _cdrom_file*,unsigned int,unsigned char*,unsigned int,unsigned char);
 static unsigned char* disc_toc = NULL;
 static unsigned int disc_toc_size = NULL;
+
+// Key polling thread variables
+static HANDLE key_polling_thread = NULL;
+static int keep_polling = 1;
 
 bswap32(unsigned int x)
 {
@@ -29,6 +31,12 @@ unsigned short bswap16(unsigned short x)
 
 
 void get_toc_data(){
+    // Free old TOC if exists
+    if(disc_toc != NULL) {
+        free(disc_toc);
+        disc_toc = NULL;
+    }
+
     disc_toc = (unsigned char*)malloc(12+(cdrf.cdtoc.numtrks*8));
 
     memset(disc_toc,0x00,12+(cdrf.cdtoc.numtrks*8));
@@ -68,17 +76,28 @@ void get_toc_data(){
 
 }
 
-
-
-void load_chd_file(unsigned char*  chd_path){
-
+// Original function - takes WCHAR* (wide string) like before
+void load_chd_file(unsigned char* chd_path){
     int addr = libchd_cdrom_open(chd_path);
     if(addr == 1 || addr == 0){
-        OutputDebugStr("Opening CHD Failed!");
+        OutputDebugStringA("Opening CHD Failed!");
     }else{
-        OutputDebugStr("Opened CHD");
+        OutputDebugStringA("Opened CHD");
     }
     memcpy(&cdrf,addr,sizeof(cdrf));
+}
+
+// New function for M3U - converts char* to WCHAR* before calling load_chd_file
+void load_chd_file_from_path(const char* chd_path_char){
+    // Convert char* to WCHAR*
+    WCHAR chd_path_wide[512];
+    MultiByteToWideChar(CP_ACP, 0, chd_path_char, -1, chd_path_wide, 512);
+
+    OutputDebugStringA("Loading CHD from char path:");
+    OutputDebugStringA(chd_path_char);
+
+    // Call original function with wide string
+    load_chd_file((unsigned char*)chd_path_wide);
 }
 
 void init_chd_library(){
@@ -170,14 +189,14 @@ BOOL __stdcall sptd_ioctl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpInBuff
     FILE *fp;
     switch(operation_code){
         case 0x00:
-            OutputDebugString("TEST UNIT READY");
+            OutputDebugStringA("TEST UNIT READY");
             sptd.SenseInfoLength = 0;
             memcpy(lpOutBuffer,&sptd,sptd.Length);
             return 1;
             break;
 
         case 0x03:
-            OutputDebugString("REQUEST SENSE");
+            OutputDebugStringA("REQUEST SENSE");
             sptd.Lun = 1;
             sptd.SenseInfoLength = 0;
             memcpy(sptd.DataBuffer,senseinfo,sizeof(senseinfo));
@@ -185,7 +204,7 @@ BOOL __stdcall sptd_ioctl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpInBuff
             return 1;
             break;
         case 0x12:
-            OutputDebugString("INQUIRY");
+            OutputDebugStringA("INQUIRY");
             memcpy(sptd.DataBuffer,drive_id,32);
             sptd.Lun = 1;
             sptd.SenseInfoLength = 0;
@@ -193,7 +212,7 @@ BOOL __stdcall sptd_ioctl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpInBuff
             return 1;
             break;
         case 0x43:
-            OutputDebugString("READ TOC/PMA/ATIP");
+            OutputDebugStringA("READ TOC/PMA/ATIP");
             memcpy(sptd.DataBuffer,disc_toc,disc_toc_size);
             sptd.DataTransferLength = disc_toc_size;
             sptd.SenseInfoLength = 0;
@@ -205,7 +224,7 @@ BOOL __stdcall sptd_ioctl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpInBuff
 
             memcpy(&removal_set,sptd.Cdb+4,4);
             sprintf(info_msg,"PREVENT ALLOW MEDIUM REMOVAL set to %d",removal_set);
-            OutputDebugString(info_msg);
+            OutputDebugStringA(info_msg);
             sptd.SenseInfoLength = 0;
             memcpy(lpOutBuffer,&sptd,sptd.Length);
             return 1;
@@ -225,7 +244,7 @@ BOOL __stdcall sptd_ioctl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpInBuff
             sptd.SenseInfoLength = 0;
             num_blocks = sptd.Cdb[8];
             //sprintf(info_msg,"Disc Read Offset: %04X Length: %d",lba,num_blocks);
-            OutputDebugString(info_msg);
+            OutputDebugStringA(info_msg);
             unsigned char*dbuf=(unsigned char*)malloc(num_blocks*2352);
             read_disc_data(dbuf,lba,num_blocks,1);
 
@@ -237,27 +256,99 @@ BOOL __stdcall sptd_ioctl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpInBuff
             break;
         default:
             sprintf(info_buffer,"Unknown SPTD Operation Code %#x",operation_code);
-            OutputDebugString(info_buffer);
+            OutputDebugStringA(info_buffer);
             return 1;
             break;
     }
 }
 
+// Thread that polls for key presses
+DWORD WINAPI KeyPollingThread(LPVOID lpParam) {
+    OutputDebugStringA("Key polling thread started");
+    
+    while(keep_polling) {
+        // Only check if we're in M3U mode
+        if(g_is_m3u) {
+            // Check Page Down (VK_NEXT = 0x22)
+            if(GetAsyncKeyState(VK_NEXT) & 0x8000) {
+                OutputDebugStringA("Page Down detected - swapping to next disc");
+                swap_to_next_disc();
+                Sleep(500);  // Debounce - wait before checking again
+            }
+            
+            // Check Page Up (VK_PRIOR = 0x21)
+            if(GetAsyncKeyState(VK_PRIOR) & 0x8000) {
+                OutputDebugStringA("Page Up detected - swapping to previous disc");
+                swap_to_previous_disc();
+                Sleep(500);  // Debounce
+            }
+        }
+        
+        Sleep(100);  // Check every 100ms
+    }
+    
+    OutputDebugStringA("Key polling thread stopped");
+    return 0;
+}
+
+// Start the key polling thread
+void start_key_polling() {
+    DWORD thread_id;
+    key_polling_thread = CreateThread(NULL, 0, KeyPollingThread, NULL, 0, &thread_id);
+    if(key_polling_thread) {
+        OutputDebugStringA("Key polling thread created - PageDown=next, PageUp=previous");
+    } else {
+        OutputDebugStringA("Failed to create key polling thread");
+    }
+}
+
+// Stop the key polling thread
+void stop_key_polling() {
+    keep_polling = 0;
+    if(key_polling_thread) {
+        WaitForSingleObject(key_polling_thread, 1000);
+        CloseHandle(key_polling_thread);
+        key_polling_thread = NULL;
+    }
+}
 
 void init_sptd(){
-    // TODO: Start up Libraries or interpreter.
-    OutputDebugStr("Starting up SPTD Emulator");
+    OutputDebugStringA("Starting up SPTD Emulator");
     init_chd_library();
-    // Get Target CHD Image.
-    // Get Target CHD Image.
+
+    // Get Target CHD/M3U Image from command line
     LPCWSTR cmd;
     cmd = GetCommandLineW();
     unsigned int num_args;
-    LPCWSTR* args = CommandLineToArgvW(cmd,&num_args);
-    // Load the CHD Image object.
-    OutputDebugString("Loading CHD:");
+    LPWSTR* args = CommandLineToArgvW(cmd,&num_args);
+
+    if(num_args < 2) {
+        OutputDebugStringA("No disc image specified");
+        return;
+    }
+
+    // Convert wide string to char for extension checking
+    char file_path[512];
+    WideCharToMultiByte(CP_ACP, 0, args[1], -1, file_path, sizeof(file_path), NULL, NULL);
+
+    OutputDebugStringA("Loading disc image:");
     OutputDebugStringW(args[1]);
-    load_chd_file(args[1]);
-    // Get the TOC, Might as well do that now...
-    get_toc_data();
+
+    // Check if M3U or CHD
+    if(strstr(file_path, ".m3u") != NULL || strstr(file_path, ".M3U") != NULL) {
+        // M3U playlist - multi-disc
+        OutputDebugStringA("Detected M3U playlist");
+        if(parse_m3u_file(file_path)) {
+            OutputDebugStringA("M3U parsed successfully, loading first disc");
+            reload_current_disc();
+            start_key_polling();  // Start polling instead of hook
+        } else {
+            OutputDebugStringA("Failed to parse M3U file");
+        }
+    } else {
+        // Single CHD file - pass wide string directly
+        OutputDebugStringA("Detected single CHD file");
+        load_chd_file(args[1]);  // Pass WCHAR* directly, not converted char*
+        get_toc_data();
+    }
 }

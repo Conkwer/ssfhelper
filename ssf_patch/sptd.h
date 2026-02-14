@@ -1,12 +1,12 @@
-//
-// Created by batte on 6/8/2017.
-//
-
 #ifndef SSF_PATCH_SPTD_H
 #define SSF_PATCH_SPTD_H
 
-#include <afxres.h>
+#include <windows.h>
+#include "chd_helper.h"
 
-BOOL __stdcall sptd_ioctl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize, LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped);
-void init_sptd(void);
+void init_sptd();
+void get_toc_data();
+void load_chd_file(unsigned char* chd_path);  // Takes WCHAR* (wide string)
+void load_chd_file_from_path(const char* chd_path_char);  // New: Takes char* and converts to WCHAR*
+
 #endif //SSF_PATCH_SPTD_H
