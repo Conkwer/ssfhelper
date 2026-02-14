@@ -18,8 +18,4 @@ cp SSFHelper_m3u_support.cpp main.cpp
 # Build the executable
 mingw32-make clean
 mingw32-make
-
-# Build
-mingw32-make clean
-mingw32-make
 ```
