@@ -4,7 +4,7 @@ Play Sega Saturn CHD files in SSF emulator with automatic multi-disc game suppor
 
 # Compatibility  
 
-Mostly for SSF_R16, but will be compatible with SSF_012_beta_R4 and partially with SSF_011_alpha_R5.  
+Mostly for SSF_R16, but will be compatible with SSF_012_beta_R4 and partially with SSF_011_alpha_R5''.  
 SSF_011_alpha_R4 and below are not supported. Can be compatible with versions newer then SSF_R16 but not tested.  
 
 ## What This Does
