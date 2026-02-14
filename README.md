@@ -1,28 +1,72 @@
-# CHDSSF
-SSF with CHDv5 (Archive.org) Support
+# SSF CHD Patcher + M3U Multi-Disc Support
 
-SSF is quite the amazing Saturn emulator, however, it lacks an (enabled) option to load from disc images without the use of some adware-infested solution such as DaemonTools.
+Play Sega Saturn CHD files in SSF emulator with automatic multi-disc game support.
 
-Included is a patch started less than 24 hours ago that adds CHD support - no emulated drive needed.
+## What This Does
 
-Update: Works on most versions automatically now with no modification required.
+- Load CHD disc images directly in SSF
+- Play multi-disc games (Sakura Taisen, Panzer Dragoon Saga, Shining Force III) with easy disc swapping
+- Press **Page Down**/**Page Up** to switch discs - no menus needed
 
-Instructions:
+## Quick Setup
 
+1. Put these files in your SSF folder:
+   - `SSFHelper.exe`
+   - `ssf_patch.dll`  
+   - `libchd.dll`
 
-1. Compile SSFLoader and ssf_patch (or use the provided versions). I use Clion+CMake+Mingw, but use whatever works.
+2. Run: `SSFHelper.exe "game.chd"`
 
-1. Place SSFLoader.exe, libchd.dll, and ssf_patch.dll in the SSF emulator directory.
+## Multi-Disc Games (M3U)
 
-3. Run SSFLoader.exe with a command argument that contains the relative (or absolute, whatever) path to the chd file.
-	e.g.
-	```
-	"SSFLoader.exe bomb.chd"
-	```
-4. SSF should start (and so should the game), if it doesn't, check the disc drive selected under Options, it should be set to "CHDDriveVirtual", if not, set it and select "CD Close" from the Hardware drop-down.
+Create a text file named `game.m3u`:
 
+```
+Disc 1.chd
+Disc 2.chd  
+Disc 3.chd
+```
 
+Launch: `SSFHelper.exe "game.m3u"`
 
-Happy Saturn'ing ^^
+### During Gameplay
 
-![Image of CHDSSF](http://i.imgur.com/ad9G42E.png)
+When game asks for next disc:
+
+1. Press **Page Down** (switches to next disc internally)
+2. Press **F1** (opens tray in SSF)
+3. Press **F2** (closes tray)
+4. Keep playing!
+
+**Hotkeys:**
+- `Page Down` = Next disc
+- `Page Up` = Previous disc
+
+## Why Antivirus May Flag This
+
+This uses DLL injection to add features to SSF, which antivirus software sometimes flags as suspicious. **It's a false positive** - the same technique used by ReShade, ENB, and other game mods. Source code is fully available for inspection.
+
+## Building from Source
+
+```bash
+cd ssf_patch
+mkdir build && cd build
+cmake -G "MinGW Makefiles" ..
+mingw32-make
+```
+
+## Files
+
+- `SSFHelper.exe` - Loader that patches SSF
+- `ssf_patch.dll` - Main CHD/SCSI emulation
+- `libchd.dll` - CHD reading library
+
+## Credits
+
+- Original CHD patch: [batteryshark/chdssf](https://github.com/batteryshark/chdssf)
+- M3U multi-disc support: Added in this fork
+- Based on Mednafen/Beetle Saturn implementation
+
+## License
+
+[GPL/Whatever the original used]
