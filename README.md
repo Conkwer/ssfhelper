@@ -61,7 +61,6 @@ This uses DLL injection to add features to SSF, which antivirus software sometim
 
 - Original CHD patch: [batteryshark/chdssf](https://github.com/batteryshark/chdssf)
 - M3U multi-disc support: Added in this fork
-- Inspired by Mednafen/Beetle Saturn implementation
 
 ### Why It Works
 
