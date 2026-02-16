@@ -1,6 +1,6 @@
 # SSF CHD Patcher + M3U Multi-Disc Support  
 
-Play Sega Saturn CHD files in SSF emulator with automatic multi-disc game support.
+Play Sega Saturn CHD files in SSF emulator with automatic multi-disc game support and hotswap feature. Good for LaunchBox and arcade cabinets with low-spec hardware.
 
 # Compatibility  
 
